@@ -1,33 +1,69 @@
 from django.shortcuts import render
 from django.http import HttpResponse
+from ROUTE import models
 
 
 # Create your views here.
 def route_filter(request, route_type=None, country=None, location=None):
-    print(route_type)
-    print(country)
-    print(location)
-    return HttpResponse('Ok')
+    query_filter = {}
+    if route_type is not None:
+        query_filter['route_type'] = route_type
+    if country is not None:
+        query_filter['country'] = country
+    if route_type is not None:
+        query_filter['location'] = location
+
+    result = models.Route.objects.all().filter(**query_filter)
+    return HttpResponse([{'country':itm.country, 'id':itm.id} for itm in result])
 
 
 def route_detail(request, id):
-    print(id)
-    return HttpResponse('Ok')
+    result = models.Route.objects.all().filter(id=id)
+    return HttpResponse([{'country': itm.country, 'id': itm.id}for itm in result])
 
 
-def route_reviews(request, id):
-    print(id)
-    return HttpResponse('Ok')
+def route_reviews(request, route_id):
+    result = models.Route.objects.all().filter(route_id=route_id)
+    return HttpResponse([{'id_route':itm.id_route, 'start_date': itm.start_date,
+                          'price': itm.price}for itm in result])
 
 
 def route_add(request):
-    return HttpResponse('Ok')
+    if request.method == 'GET':
+        return render(request, 'add_route.html')
+    if request.method == 'POST':
+        destination = request.POST.get('destination')
+        start_point = request.POST.get('starting_point')
+        country = request.POST.get('country')
+        location = request.POST.get('location')
+        description = request.POST.get('description')
+        duration = request.POST.get('duration')
+        route_type = request.POST.get('route_type')
+
+        start_obj = models.Places.objects.get(name=start_point)
+        dest_obj = models.Places.objects.get(name=destination)
+
+        new_route = models.Route(starting_point=start_obj.id, destination=dest_obj.id,
+                                 country = country, location=location, description=description,
+                                 duration=duration,route_type=route_type, stopping_point={})
+        new_route.save()
+        return HttpResponse('Route created')
 
 
-def route_add_event(request, id):
-    print(id)
-    return HttpResponse('Ok')
+def route_add_event(request, route_id):
+    if request.method == 'GET':
+        return render(request, 'add_event_route.html')
+    if request.method == 'POST':
+        start_date = request.POST.get('start_date')
+        price = request.POST.get('price')
+
+        new_event = models.Event(id_route=route_id, event_admin=1,approved_user=[],
+                                 pending_users=[], start_date=start_date, price=price)
+        new_event.save()
+    return HttpResponse('Event Added')
 
 
-def event_handler(request):
-    return HttpResponse('Ok!')
+def event_handler(request, event_id):
+    result = models.Event.objects.all().filter(id=event_id)
+    return HttpResponse([{'id_route': itm.id_route, 'start_date': itm.start_date,
+                          'price': itm.price}for itm in result])
