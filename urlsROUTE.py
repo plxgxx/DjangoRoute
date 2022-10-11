@@ -13,5 +13,6 @@ urlpatterns = [
     path('<str:route_type>/<str:country>', views.route_filter, name='route_country'),
     path('<str:route_type>/<str:country>/<str:location>', views.route_filter, name='route_location'),
     path('<int:route_id>/reviews', views.route_reviews, name='route_reviews'),
-    path('event_review/<int:event_id>', views.event_handler, name='event_review')
+    path('event_review/<int:event_id>', views.event_handler, name='event_review'),
+
 ]
