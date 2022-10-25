@@ -2,26 +2,100 @@ from django.contrib.auth import  authenticate, login, logout
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
+from django.db import connection
 from ROUTE import models
 
 
 # Create your views here.
 def route_filter(request, route_type=None, country=None, location=None):
-    query_filter = {}
+    cursor = connection.cursor()
+    query_filter = []
     if route_type is not None:
-        query_filter['route_type'] = route_type
+        query_filter.append(f"route_type='{route_type}'")
     if country is not None:
-        query_filter['country'] = country
-    if route_type is not None:
-        query_filter['location'] = location
-
-    result = models.Route.objects.all().filter(**query_filter)
-    return HttpResponse([{'country':itm.country, 'id':itm.id} for itm in result])
+        query_filter.append(f"country='{country}'")
+    if location is not None:
+        query_filter.append(f"location='{location}'")
 
 
-def route_detail(request, id):
-    result = models.Route.objects.all().filter(id=id)
-    return HttpResponse([{'country': itm.country, 'id': itm.id}for itm in result])
+    filter_string = ' and '.join(query_filter)
+
+    joining = """SELECT ROUTE_route.country,
+                        ROUTE_route.description,
+                        ROUTE_route.duration,
+                        ROUTE_route.stopping_point,
+                        ROUTE_route.route_type,
+                        start_point.name,
+                        end_point.name
+                 FROM ROUTE_route JOIN 
+                 ROUTE_places as start_point 
+                 ON start_point.id = ROUTE_route.starting_point
+                 JOIN ROUTE_places as end_point 
+                 ON end_point.id = ROUTE_route.destination WHERE """ + filter_string
+
+    cursor.execute(joining)
+
+    result = cursor.fetchall()
+
+    new_result = []
+    for i in result:
+        new_country = i[0]
+        new_description = i[1]
+        new_duration = i[2]
+        new_stopping = i[3]
+        new_type = i[4]
+        new_start = i[5]
+        new_end = i[6]
+        result_dict = {"country": new_country,
+                       "description": new_description,
+                       "duration": new_duration,
+                       "stopping_point": new_stopping,
+                       "route_type": new_type,
+                       "starting_point": new_start,
+                       "ending_point": new_end,}
+        new_result.append(result_dict)
+    if new_result is not None:
+        return HttpResponse(new_result)
+    else:
+        return HttpResponse("No route found")
+
+
+def route_detail(request, route_id):
+    cursor = connection.cursor()
+    join = f"""SELECT ROUTE_route.country,
+                        ROUTE_route.description,
+                        ROUTE_route.duration,
+                        ROUTE_route.stopping_point,
+                        ROUTE_route.route_type,
+                        start_point.name,
+                        end_point.name
+                        FROM ROUTE_route
+                            JOIN ROUTE_places as start_point
+                                ON start_point.id = ROUTE_route.starting_point
+                            JOIN route_places as end_point
+                                ON end_point.id = ROUTE_route.destination
+                            WHERE ROUTE_route.id = '{route_id}' """
+    cursor.execute(join)
+    result = cursor.fetchall()
+
+    new_result = []
+    for i in result:
+        new_country = i[0]
+        new_description = i[1]
+        new_duration = i[2]
+        new_stopping = i[3]
+        new_type = i[4]
+        new_start = i[5]
+        new_end = i[6]
+        result_dict = {"country": new_country,
+                       "description": new_description,
+                       "duration": new_duration,
+                       "stopping_point": new_stopping,
+                       "route_type": new_type,
+                       "starting_point": new_start,
+                       "ending_point": new_end, }
+        new_result.append(result_dict)
+    return HttpResponse(new_result)
 
 
 def route_reviews(request, route_id):
@@ -74,9 +148,51 @@ def route_add_event(request, route_id):
 
 
 def event_handler(request, event_id):
-    result = models.Event.objects.all().filter(id=event_id)
-    return HttpResponse([{'id_route': itm.id_route, 'start_date': itm.start_date,
-                          'price': itm.price}for itm in result])
+    cursor = connection.cursor()
+
+    join = f"""SELECT event.id,
+                     event.start_date,
+                     event.price,
+                     route.country,
+                     route.location,
+                     route.stopping_point,
+                     place.name,
+                     route.duration, 
+                     route.description
+                        FROM ROUTE_event as event
+                            JOIN ROUTE_route as route
+                                ON event.id_route = route.id
+                            JOIN route_places as place
+                                ON route.destination = place.id
+                            WHERE event.id = '{event_id}' """
+
+    cursor.execute(join)
+    result = cursor.fetchall()
+
+    new_result = []
+    for i in result:
+        new_id = i[0]
+        new_date = i[1]
+        new_price = i[2]
+        new_country = i[3]
+        new_location = i[4]
+        new_stopping = i[5]
+        new_end = i[6]
+        new_duration = i[7]
+        new_description = i[8]
+        result_dict = {"id": new_id,
+                       "date": new_date,
+                       "price": new_price,
+                       "country": new_country,
+                       "location": new_location,
+                       "stopping_point": new_stopping,
+                       "ending_point": new_end,
+                       "duration": new_duration,
+                       "description": new_description,
+                       }
+        new_result.append(result_dict)
+
+    return HttpResponse(new_result)
 
 
 def user_login(request):
