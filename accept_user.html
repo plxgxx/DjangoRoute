@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<form action="accept_user" method="POST">
+    {% csrf_token %}
+  <div>
+    <label for="accept">AcceptUser</label>
+    <input name="accept" id="accept" value="Input user" />
+  </div>
+
+  <div>
+      <button>Accept user</button>
+  </div>
+</form>
+</body>
+</html>
