@@ -8,6 +8,8 @@ from django.db import connection
 from ROUTE import models
 from mongo_utils import MongoDBConnection
 from bson import ObjectId
+from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 
 
 
@@ -62,7 +64,13 @@ def route_filter(request, route_type=None, country=None, location=None):
                        "ending_point": new_end,}
         new_result.append(result_dict)
     if new_result is not None:
-        return HttpResponse(new_result)
+        p = Paginator(new_result, 2)
+        num_page = int(request.GET.get('page', default=1))
+        if num_page < p.num_pages:
+            num_page = 1
+        select_page = p.get_page(num_page)
+
+        return HttpResponse(select_page.object_list)
     else:
         return HttpResponse("No route found")
 
@@ -133,6 +141,7 @@ def route_add(request):
             duration = request.POST.get('duration')
             route_type = request.POST.get('route_type')
 
+            models.validate_stop_point(stop_points)
             stop_list = json.loads(stop_points)
 
             with MongoDBConnection('admin','admin', '127.0.0.1') as db:
@@ -145,6 +154,7 @@ def route_add(request):
             new_route = models.Route(starting_point=start_obj.id, destination=dest_obj.id,
                                      country = country, location=location, description=description,
                                      duration=duration,route_type=route_type, stopping_point=id_stop_points)
+
             new_route.save()
             return HttpResponse('Route created')
     else:
@@ -160,10 +170,13 @@ def route_add_event(request, route_id):
             start_date = request.POST.get('start_date')
             price = request.POST.get('price')
 
-            new_event = models.Event(id_route=route_id, event_admin=1,approved_user=[],
-                                     pending_users=[], start_date=start_date, price=price)
-            new_event.save()
-        return HttpResponse('Event Added')
+            new_event = models.Event(id_route=route_id, event_admin=1, event_users=[], start_date=start_date, price=price)
+            try:
+                new_event.full_clean()
+                new_event.save()
+                return HttpResponse('Event Added')
+            except ValidationError:
+                return HttpResponse('Date error')
     else:
         return HttpResponse('No rights')
 
