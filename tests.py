@@ -1,5 +1,5 @@
 from django.test import TestCase, Client
-from ROUTE.models import Route
+from ROUTE.models import Route, Event
 # Create your tests here.
 
 
@@ -26,3 +26,12 @@ class TestEvent(TestCase):
 
         response = client.post('/ROUTE/1/add_event')
         self.assertEqual(200, response.status_code)
+
+class TestRouteFixture(TestCase):
+    fixtures = ['route.json']
+
+    def test_recieving(self):
+        resp = self.client.get('/ROUTE/event_review/1')
+        parsed_resp = resp.json()
+        self.assertEqual('1st one', parsed_resp[0]['description'])
+        print(parsed_resp)
